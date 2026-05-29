@@ -25,7 +25,7 @@ Chosen: **Bundle-only, no BYO axis in v0.1.**
 
 | Component | v0.1 shape |
 |-----------|------------|
-| **Postgres** | Bundled. Thin chart templates derived from the spike: StatefulSet running `postgres:18.3-alpine`, PVC via `volumeClaimTemplates`, init ConfigMap creating only the `marsa` database + user, Secret holding generated passwords (chart generates on install, persists via secret if regenerated). Additional databases (e.g. for an auth provider) get added when those subsystems land. |
+| **Postgres** | Bundled. Thin chart templates derived from the spike: StatefulSet running `postgres:18.3-alpine`, PVC via `volumeClaimTemplates`, init ConfigMap creating only the `marsa` database + user, Secret holding chart-generated passwords. Re-installs reuse the existing Secret to preserve the password. Additional databases (e.g. for an auth provider) get added when those subsystems land. |
 | **Redis** | Bundled. Thin chart templates: Deployment running `redis:7-alpine` (or current LTS at v0.1 cut), PVC for AOF persistence, Service. |
 | **Ingress controller** | Use K3s built-in **Traefik**. No bundled controller, no BYO values exposed. The chart's `Ingress` resource uses the default ingressClassName Traefik registers. |
 | **cert-manager / TLS** | Not bundled, not configured. MVP local-network assumption removes the need. |

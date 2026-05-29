@@ -33,7 +33,7 @@ This is the standard 2026-era pattern. The Helm <3.8 compatibility cost is judge
 
 - **Publish pipeline ([#3](https://github.com/marsa-cloud/marsa-charts/issues/3))** runs on tag push: package chart, `helm push oci://ghcr.io/marsa-cloud/charts`. No `cr index` step, no gh-pages commit.
 - **README ([#4](https://github.com/marsa-cloud/marsa-charts/issues/4))** documents the OCI install command verbatim. No `helm repo add` step.
-- **Versioning ([[AgDR-0002-chart-versioning]])** — both chart `version` and `appVersion` end up on the OCI tag; tag = chart version.
+- **Versioning ([[AgDR-0002-chart-versioning]])** — the OCI tag is the chart's `version` field; `appVersion` is metadata embedded in the artifact, not in the tag.
 - **Cosign signing path is open** as a future enhancement (separate follow-up ticket if/when supply-chain verification becomes a roadmap item).
 - **No gh-pages branch** — keeps the repo tree clean; `main` is the only branch.
 - **Pre-Helm-3.8 operators see "unsupported scheme: oci"** if they try to install — README explicitly states minimum Helm version.

@@ -8,10 +8,11 @@
 # Note: apexyard itself (this ops repo) is intentionally NOT listed — it is
 # the governance repo, not a managed project.
 #
-# `workspace` is omitted on every entry below: nothing is cloned under
-# workspace/ yet, so skills will use GitHub-only data and mark git fields as
-# "(not cloned)". Add `workspace: workspace/<name>` once you clone a repo
-# locally into the ops repo's workspace/ dir.
+# `workspace` is set on entries whose repo has been cloned locally into
+# the ops repo's workspace/ dir; skills then use real git state for those
+# entries. Entries without `workspace` fall back to GitHub-only data and
+# mark git fields as "(not cloned)". Add `workspace: workspace/<name>`
+# once you clone a new repo.
 
 # Schema version. Bump if breaking changes are introduced.
 version: 1

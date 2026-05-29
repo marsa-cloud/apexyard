@@ -133,7 +133,7 @@ Already present in `apexyard.projects.yaml`:
 
 ## Next Steps
 
-1. ~~Decide chart structure (umbrella vs per-service)~~ → Filed as [#2](https://github.com/marsa-cloud/marsa-charts/issues/2)
+1. ~~Decide chart structure (umbrella vs per-service)~~ → **Decided in [AgDR-0001](docs/agdr/AgDR-0001-chart-structure.md)** (tracked via [#2](https://github.com/marsa-cloud/marsa-charts/issues/2), closed)
 2. ~~Set up Helm chart CI (lint, ct lint, kubeconform)~~ → Filed as [#3](https://github.com/marsa-cloud/marsa-charts/issues/3)
 3. ~~Write minimum-viable README~~ → Filed as [#4](https://github.com/marsa-cloud/marsa-charts/issues/4)
 4. ~~Decide chart versioning policy (independent SemVer vs lockstep with marsa)~~ → Filed as [#5](https://github.com/marsa-cloud/marsa-charts/issues/5)

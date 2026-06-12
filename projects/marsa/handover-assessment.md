@@ -17,6 +17,7 @@
 ## Current State
 
 ### Tech stack
+
 - **Repo shape**: pnpm monorepo (`pnpm@9.15.0`), workspaces `apps/*` + `packages/*`, shared dependency `catalog:` in `pnpm-workspace.yaml`
 - **Language**: TypeScript (`^5.7.3`), Node `>=22`, ESM (`"type": "module"`, `module: nodenext`)
 - **API** (`apps/api`): NestJS 11 (Fastify + Express platforms), MikroORM 6 (PostgreSQL), `pg` driver, Swagger/OpenAPI generation. Tests via node's built-in test runner (`node --test`) + sinon + supertest + expect.
@@ -27,15 +28,18 @@
 - **License**: AGPL-3.0
 
 ### Build status
+
 - `pnpm install`: not attempted (operator chose skip — repo is active and CI is green on main)
 - `pnpm build`: not attempted
 - `pnpm test`: not attempted
 - `pnpm lint`: not attempted
 
 ### Test coverage
+
 - Estimated: unknown. `@vitest/coverage-v8` is installed for web, but no coverage **threshold** is configured in any vitest/test config. The API uses node's test runner with no coverage gate. No coverage step found in CI.
 
 ### Repo activity
+
 - Commits in last 90 days: 78 (repo is ~2 weeks old — high velocity)
 - Open issues: 15+ (active backlog — V0.1 milestones for Auth, Networking, Deployment, Helm chart, etc.)
 - Open PRs: 0 (latest merged: #33 `feat/11-communication-between-api-and-web`)
@@ -60,22 +64,27 @@ See AgDR-0042 for the scoring rationale and v1 thresholds.
 ## Quality Risks
 
 ### Security
+
 - **`apps/api/.env.test` is tracked in git** — contains test environment configuration (not read per handover policy). Test creds in a repo are lower-risk than prod secrets, but worth confirming no real credentials leak via the test env. The real `apps/api/.env` is correctly gitignored. ✓
 - Auth is not yet implemented — issues #22 (Marsa Auth), #23 (GitHub Auth), #27 (Auth V0.1) are open. Auth/crypto code will need the Security Auditor on first implementation PR.
 
 ### Dependencies
+
 - Young repo on current major versions (NestJS 11, Nuxt 4, MikroORM 6, ESLint 9, Vitest 3) — no obvious staleness. Run `/audit-deps` to confirm no transitive CVEs.
 
 ### Technical debt
+
 - **No coverage threshold** — coverage tooling installed but no gate. Easy to under-test as the codebase grows.
 - **Partial TS strictness** — `strictNullChecks` only; full `strict` not enabled across the monorepo.
 
 ### Operational
+
 - CD pipeline exists (`cd.yml`) but the product's own deployment target (K3s / Helm) is still being built — see issues #21 (Deployment Pipeline), #26, #30 (first Helm chart). No production observability evidence found (no Sentry/Datadog/OpenTelemetry deps).
 
 ## Integration Plan
 
 ### Roles that apply
+
 - `tech-lead` (always)
 - `backend-engineer` (NestJS API)
 - `frontend-engineer` (Nuxt web)
@@ -85,6 +94,7 @@ See AgDR-0042 for the scoring rationale and v1 thresholds.
 - `security-auditor` (conditional — activates on the upcoming Auth PRs #22/#23/#27)
 
 ### Workflows that kick in
+
 - [ ] PR workflow (`.claude/rules/pr-workflow.md`) — every change through a PR
 - [ ] AgDR for technical decisions
 - [ ] Code Reviewer agent (Rex) on every PR
@@ -92,6 +102,7 @@ See AgDR-0042 for the scoring rationale and v1 thresholds.
 - [ ] `/audit-deps marsa` on adoption and monthly thereafter
 
 ### Hooks to enable
+
 - [ ] `block-git-add-all`
 - [ ] `block-main-push`
 - [ ] `validate-branch-name` (ticket_prefix `GH` per registry)
@@ -100,7 +111,9 @@ See AgDR-0042 for the scoring rationale and v1 thresholds.
 - [ ] `check-secrets`
 
 ### CI templates to copy in
+
 The repo already has `ci.yml` + `cd.yml`. Compare against `golden-paths/pipelines/` and consider adding:
+
 - [ ] `security.yml` (Semgrep + npm/pnpm audit + secrets detection) — not currently present
 - [ ] coverage reporting step in `ci.yml`
 

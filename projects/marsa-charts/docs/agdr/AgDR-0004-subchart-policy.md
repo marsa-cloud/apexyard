@@ -1,9 +1,9 @@
 # AgDR-0004 — Subchart policy: bundle Postgres + Redis, no BYO for v0.1
 
 > In the context of deciding what infrastructure the Marsa chart provides vs. what operators must supply, facing K3s + local-network + MVP-scope constraints, I decided that **v0.1 bundles Postgres and Redis as thin in-chart templates with no BYO option**, accepting that production-grade adopters who want managed databases will be blocked until v1.0 adds the BYO axis.
-
+>
 > **Amendment (2026-05-31, Hisham):** **Redis is NOT bundled.** Marsa does not use Redis, so the "bundle Redis" portion of this decision is moot — no Redis Deployment / Service / PVC ships in the chart. The summary line above and the **Redis** row in the Decision table are retained as the original record but are **superseded by this note**. If Marsa later adopts Redis (caching, queues, sessions), revisit and bundle it then under the same thin-in-chart-template approach this AgDR established for Postgres. Net effect for v0.1: the bundled-component scope is **Postgres only**.
-
+>
 > **Amendment (2026-05-31, Hisham):** This record's references to "TLS" / "cert-manager / TLS" were written with **in-cluster, service-to-service** TLS in mind (e.g. marsa-api ↔ Postgres over the private network) — the concern a service mesh (Linkerd et al.) would address. That concern remains **out of scope** and unaddressed here. **Public-facing ingress HTTPS** (browser → `marsa.<domain>`, certs from a public CA like Let's Encrypt) is a **separate axis** this AgDR did NOT intend to govern; it is decided in [[AgDR-0005-public-ingress-tls]]. The Decision table's TLS row and the "Trigger to revisit (Ingress / TLS)" section below are re-scoped accordingly. **Net effect: bundling public-ingress TLS in the chart does not contradict this record.** The original Context bullets are left as-written — they record the assumptions at decision time, now superseded by this note.
 
 ## Context

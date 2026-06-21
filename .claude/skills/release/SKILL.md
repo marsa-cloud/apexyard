@@ -76,6 +76,53 @@ Run `git log <prev-tag>..upstream/dev --pretty=format:'%h %s'` and group by conv
 
 Show the draft and let the user edit interactively before opening the PR.
 
+### 3.5. Bump the marketing-site version strings (`site/index.html`)
+
+The marketing site hard-codes the framework version in several places. `/release`
+bumps the git tag + CHANGELOG but historically did NOT touch these, so they
+drifted across ~5 release cycles before anyone noticed (#491 / #493). Update them
+**in the same commit that lands the CHANGELOG entry**, driven by the version being
+cut (`vX.Y.Z`, with `X.Y.Z` the bare semver and `X.Y` the major.minor) and the
+release date (`YYYY-MM-DD`):
+
+| Location in `site/index.html` | What to set | Approx. line |
+|------|------|------|
+| JSON-LD `softwareVersion` | `X.Y.Z` (no `v` prefix — matches CHANGELOG `## [X.Y.Z]`) | ~L54 |
+| JSON-LD `dateModified` | release date `YYYY-MM-DD` | ~L57 |
+| Hero pill `apexyard vX.Y` | `apexyard vX.Y` | ~L1568 |
+| Hero version link **text** | `vX.Y.Z` | ~L1576 |
+| Hero version link **href** | `…/releases/tag/vX.Y.Z` | ~L1576 |
+| Releases-shipped metric **count** | number of `## [` release entries in `CHANGELOG.md` | ~L1696 |
+| Releases-shipped metric **range** | `(v0.1 → vX.Y)` | ~L1696 |
+
+Derive every value from the version being cut — do not hand-pick. Suggested
+computation:
+
+```bash
+VER="${VERSION#v}"                       # 2.2.0  (strip leading v if present)
+MAJOR_MINOR="${VER%.*}"                   # 2.2
+RELEASE_DATE=$(date +%F)                  # YYYY-MM-DD (or the CHANGELOG entry's date)
+RELEASE_COUNT=$(grep -cE '^## \[[0-9]' "$ops_root/CHANGELOG.md")  # count of release entries
+```
+
+**Leave historical version strings untouched** — CHANGELOG entries, migration-script
+filenames (e.g. `migrate-v1-to-v2.ts`), and AgDR examples that quote an old version
+are history, not the current-version advertisement. Only the seven locations above
+move with each cut.
+
+Show the resulting `site/index.html` diff alongside the CHANGELOG diff in the
+dry-run / preview so the operator sees both before the PR opens.
+
+> **Durable guard:** `test_site_counts.sh` asserts that `site/index.html`'s
+> JSON-LD `softwareVersion`, the **hero pill** (`apexyard vX.Y`), and the
+> **releases-shipped metric** (count + `(v0.1 → vX.Y)` range) all match the
+> top-most `## [X.Y.Z]` entry in `CHANGELOG.md` (the count matches
+> `grep -cE '^## \[[0-9]' CHANGELOG.md`). The CI workflow `site-counts-check.yml`
+> runs it on every PR. If you bump the CHANGELOG without bumping these site
+> strings (or vice-versa), CI goes red — the drift can no longer accumulate
+> silently. (Before #562 only `softwareVersion` was guarded, which is how the
+> pill + metric drifted to v2.2 at the v3.0.0 cut.)
+
 ### 4. Open the release PR
 
 Branch from `dev`: `release/vA.B.C`. Push to `upstream`. Open PR:
@@ -102,13 +149,41 @@ The release PR runs through the normal flow:
 
 ### 6. Tag + push (after merge)
 
-Once the release PR merges, the user invokes `/release --tag vA.B.C` (or runs the suggested commands manually):
+Once the release PR squash-merges to `main`, the tag must point at the **squash commit that landed on `main`** — never at the release-branch HEAD. When a PR is squash-merged, GitHub creates a single new commit on `main` whose SHA is different from every commit on the source branch. Tagging the release-branch HEAD produces a tag that is not reachable from `main`, breaking `git describe`, `git merge-base`, and any ancestry-based tooling (see issue #550).
+
+The user invokes `/release --tag vA.B.C` (or runs the suggested commands manually):
 
 ```bash
-git fetch upstream main
+# Step 1 — fetch so upstream/main points at the squash commit just merged.
+git fetch upstream
+
+# Step 2 — tag the tip of upstream/main.
+#           This IS the squash commit. Do NOT use the release-branch HEAD —
+#           it was discarded by the squash and is no longer in main's ancestry.
 git tag vA.B.C upstream/main
+
+# Step 3 — ancestry guard: assert the tag is reachable from main BEFORE pushing.
+#           If this exits non-zero, the tag is mis-placed — delete and re-tag.
+if ! git merge-base --is-ancestor vA.B.C upstream/main; then
+  echo "ERROR: vA.B.C is not an ancestor of upstream/main — tag is mis-placed." >&2
+  echo "Delete the tag with: git tag -d vA.B.C" >&2
+  echo "Then re-run from Step 1 after confirming the PR was squash-merged." >&2
+  exit 1
+fi
+
+# Step 4 — push only after the guard passes.
 git push upstream vA.B.C
 ```
+
+#### Post-tag release checklist
+
+Before announcing the release, verify all three assertions hold:
+
+- [ ] `git merge-base --is-ancestor vA.B.C upstream/main` exits 0 (tag is an ancestor of main)
+- [ ] `git describe --tags --abbrev=0 upstream/main` returns `vA.B.C` (tag is discoverable from main)
+- [ ] `git rev-parse vA.B.C^{}` equals `git rev-parse upstream/main` (tag points at the exact tip — true for a clean release with no post-merge commits; will differ if post-merge work has landed, which is fine as long as the first two assertions hold)
+
+> **One-time note on v2.3.0:** the existing `v2.3.0` tag is mis-placed (release-branch HEAD, not the squash commit on `main`). Re-pointing it is an operational step — force-updating a published tag — that must be done by the maintainer outside this skill. This fix prevents the same mistake on all future releases.
 
 ### 7. Optional: GitHub Release
 
@@ -152,7 +227,7 @@ This files a `sync/main-to-dev-after-vA.B.C → dev` PR that merges `upstream/ma
 3. **Always show the bump for confirmation** — auto-detection is a proposal, not a fait accompli. The CEO's eyes are the final check on semver intent.
 4. **CHANGELOG is editable** before the release PR opens. Don't auto-file what hasn't been reviewed.
 5. **Never auto-merge the release PR.** Rex + CEO approval applies as for any PR. The skill stops at "PR opened."
-6. **Never tag before merge.** Tags follow the merge commit on `main`, not the dev HEAD.
+6. **Never tag before merge, and never tag the release-branch HEAD.** After a squash-merge the release branch's HEAD is not in `main`'s ancestry. Always tag `upstream/main` (the squash commit) and assert `git merge-base --is-ancestor vA.B.C upstream/main` before pushing the tag. See step 6 for the full guard.
 7. **`<!-- multi-close: approved -->`** in the release PR body is required — release PRs legitimately close many tickets at once.
 
 ## Related

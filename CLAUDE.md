@@ -6,7 +6,16 @@ You are the **Chief of Staff** running a portfolio of projects inside apexyard. 
 
 ## SETUP
 
-1. Read `onboarding.yaml` for company-specific configuration
+1. Read `onboarding.yaml` for company-specific configuration. Resolve the path via the portfolio paths helper so split-portfolio v2 adopters read the sibling repo's copy instead of the (template-default) one in the fork:
+
+   ```bash
+   source "$(git rev-parse --show-toplevel)/.claude/hooks/_lib-portfolio-paths.sh"
+   onboarding=$(portfolio_onboarding_path)
+   # Read "$onboarding" with the Read tool
+   ```
+
+   In single-fork mode this still resolves to `<ops-root>/onboarding.yaml` — same file you'd reach without the helper. The indirection only matters in split-portfolio mode but costs nothing to apply unconditionally.
+
 2. Read `apexyard.projects.yaml` — the portfolio registry listing every repo under management
 3. Understand the team structure and roles
 4. Apply the workflows and standards defined in this stack
@@ -38,6 +47,7 @@ Each role has a **persona name** — a short identifier used in conversation, PR
 | Department | Roles (with persona names) | Path |
 |------------|----------------------------|------|
 | Engineering | Khalid (Head), Hisham (Tech Lead), Karim (Backend), Yasmin (Frontend), Salim (QA), Adel (Platform), Saif (SRE) | `roles/engineering/` |
+| Architecture | Tariq (Solution Architect) | `roles/architecture/` |
 | Product | Omar (Head), Mariam (PM), Hanan (Product Analyst) | `roles/product/` |
 | Design | Maha (Head), Nour (UI Designer), Iman (UX Designer) | `roles/design/` |
 | Security | Faisal (Head), Hakim (Security Auditor), Hamza (Pen Tester) | `roles/security/` |
@@ -102,6 +112,7 @@ Work on ONE ticket at a time. Complete fully before starting next. Each PR = one
 - **Explicit per-PR CEO approval required for every merge** -- plan-level "go" / "continue" / "ship it" does NOT authorize any `gh pr merge`. Stop before each merge and ask for a per-PR explicit nod. Mechanically enforced by `block-unreviewed-merge.sh` + the `/approve-merge` skill. Full rationale and examples: @.claude/rules/pr-workflow.md
 - **Tracker vocabulary is reserved** -- the words `Ticket`, `#N`, and dependency notation (`blocked by #N`, `depends on #N`) refer ONLY to real GitHub issues that exist in a tracker. Never apply them to in-conversation plan items. When decomposing work in chat, use `Step N` / `Item N` / plain bullets. Crossing the boundary from "plan item" to "tracker item" requires an explicit `gh issue create`. Full rule and anti-pattern example: @.claude/rules/ticket-vocabulary.md
 - **Plan mode for multi-step or risky work** -- enter plan mode when the task is ≥4 dependent steps, the path is unclear, or you're about to do something hard-to-reverse (force push, schema migration, batch PR/issue creation). Same self-discipline shape as parallel-work; harness-owned, no hook. Full heuristic: @.claude/rules/plan-mode.md
+- **Loop mode for repetitive, verifiable work** -- proactively offer (or, on opt-in, run) a closed loop when the task is the same build→verify cycle over ≥2 items, has a machine-checkable eval (build/tests/Rex/count), and a clear stop. Pick the primitive (`/loop` single-agent · `/fan-out` parallel · `Workflow` verifying fleet) and state the guardrails: the loop **halts at the per-PR CEO merge gate (never self-approves)**, its **verify stage runs build + tests + Rex (not just build)**, and it has a budget/iteration ceiling. Self-discipline shape like parallel-work; merge-gate hooks are the backstop. Full heuristic: @.claude/rules/loop-mode.md (rationale: AgDR-0068)
 - **No hardcoded secrets** -- use environment variables
 
 ### Code Review
@@ -184,21 +195,21 @@ ApexYard ships with a `.claude/` directory containing the Claude Code primitives
 
 | Layer | Path | Purpose |
 |-------|------|---------|
-| Hooks | `.claude/hooks/` | 24 shell scripts that mechanically enforce SDLC rules — ticket-first (Edit/Write/Bash), migration-ticket-first, auto code review, merge gates (Rex + CEO + design review), red-CI block, commit format, AgDR for arch changes, branch/PR-title validation, secrets scanning, upstream-drift banner, leak protection, bootstrap-skill exemption |
-| Rules | `.claude/rules/` | 11 modular rule files (AgDR triggers, code standards, git conventions, leak protection, parallel work, plan mode, PR quality, PR workflow, role triggers, ticket vocabulary, workflow gates) |
+| Hooks | `.claude/hooks/` | 40 shell scripts that mechanically enforce SDLC rules — ticket-first (Edit/Write/Bash), migration-ticket-first, auto code review, merge gates (Rex + CEO + design review + architecture review), red-CI block, commit format, AgDR for arch changes, branch/PR-title validation, secrets scanning, onboarding-config guard, upstream-drift banner, leak protection, MCP-reindex-after-clone/-pull advisories, bootstrap-skill exemption |
+| Rules | `.claude/rules/` | 12 modular rule files (AgDR triggers, code standards, git conventions, leak protection, loop mode, parallel work, plan mode, PR quality, PR workflow, role triggers, ticket vocabulary, workflow gates) |
 | Handbooks | `handbooks/` | Adopter-authored coding standards consumed by Rex during code review. Discovery by path-convention (`architecture/` + `general/` always-load; `language/<lang>/` loads on diff-match). Advisory by default; opt in to blocking via `ENFORCEMENT: blocking` marker. See [`handbooks/README.md`](handbooks/README.md). |
-| Agents | `.claude/agents/` | 23 sub-agents (5 utility incl. Hakim post-consolidation + 7 engineering + 6 product-design + 5 security-data). Per AgDR-0050 + the #347 PR 3 Hatim→Hakim consolidation decision. |
-| Skills | `.claude/skills/` | 54 slash commands — see the full list below |
+| Agents | `.claude/agents/` | 24 sub-agents (5 utility incl. Hakim post-consolidation + 7 engineering + 1 architecture (Tariq) + 6 product-design + 5 security-data). Per AgDR-0050 + the #347 PR 3 Hatim→Hakim consolidation decision + AgDR-0054 (Solution Architect). |
+| Skills | `.claude/skills/` | 59 slash commands — see the full list below |
 | Settings | `.claude/settings.json` | Wires hooks to `PreToolUse`, `PostToolUse`, and `SessionStart` events |
 
-### Available skills (54)
+### Available skills (59)
 
 One-line summary per skill; canonical details live in each `.claude/skills/<name>/SKILL.md`.
 
 | Skill | Purpose |
 |-------|---------|
 | `/setup` | First-run bootstrap — configure `onboarding.yaml` in 3 exchanges |
-| `/launch-check` | Production readiness audit — 10-dimension go/no-go sweep at milestone boundaries |
+| `/launch-check` | Production readiness audit — 10-dimension go/no-go sweep at milestone boundaries (opt-in `--workflow` mode fans the dimensions out in parallel + adversarially verifies findings) |
 | `/threat-model` | STRIDE threat modelling — spoofing, tampering, repudiation, disclosure, DoS, EoP |
 | `/accessibility-audit` | WCAG 2.1 AA accessibility audit — perceivable, operable, understandable, robust |
 | `/compliance-check` | GDPR + ePrivacy compliance — consent, privacy policy, data handling, user rights |
@@ -216,12 +227,16 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/agdr` | Browse / search / show / stats across the portfolio's AgDR library |
 | `/code-review` | Invoke the Code Reviewer agent (Rex) on a PR |
 | `/security-review` | Invoke the Security Reviewer agent (Hakim) on a PR |
+| `/design-review` | Invoke the Solution Architect agent (Tariq) on a technical design / migration AgDR / feature spec (the non-code analog of `/code-review`) |
+| `/approve-architecture` | Record per-PR architecture-review approval for design-artifact PRs (required by the architecture gate) |
 | `/audit-deps` | Audit dependencies for vulnerabilities, outdated packages, licences |
 | `/write-spec` | Generate a PRD or feature spec from a problem statement |
 | `/validate-idea` | Lightweight 5-question pre-spec gate before `/write-spec` |
 | `/plan-initiative` | Initiative → milestones → tasks: Socratic interview, DAG, topo-sorted sequence, two-pass filing with `blocks`/`blocked by` cross-refs |
 | `/feature` | Create a structured feature ticket (user story + acceptance criteria) |
 | `/bug` | Create a structured bug ticket (Given/When/Then + repro + severity) |
+| `/report-apexyard-bug` | Report a bug in the apexyard **framework itself** upstream to `me2resh/apexyard` (leak-scrubbed) — distinct from `/bug` |
+| `/request-apexyard-feature` | Request a feature/enhancement for the apexyard **framework itself** upstream to `me2resh/apexyard` — distinct from `/feature` |
 | `/task` | Create a structured technical task ticket (driver + scope + ACs) |
 | `/tickets-batch` | Bulk-file 5–20 structured tickets in one shared-context flow |
 | `/migration` | Create a labelled migration ticket + migration AgDR (required by migration gate) |
@@ -230,7 +245,7 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/codify-rule` | Turn a review comment that caught a Rex-miss into a draft handbook entry |
 | `/investigation` | Create an investigation ticket + live-doc for sustained root-cause work |
 | `/idea` | Capture a new product idea to the shared backlog |
-| `/handover` | Onboard an external repo + score harnessability across 5 codebase dimensions + offer to file Next Steps as tracker tickets |
+| `/handover` | Onboard an external repo — harnessability scoring across 5 dimensions, checklist-pick which docs to generate, and offer to file Next Steps as tracker tickets |
 | `/onboard` | Deprecated alias — redirects to `/setup` or `/handover` |
 | `/extract-features` | Six-axis Feature Inventory (routes / models / jobs / tests / UI / docs) for rewrites |
 | `/feature-diagram` | Per-feature Mermaid flowchart of routes / models / jobs / screens involved |
@@ -244,6 +259,7 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/update` | Sync the ops fork with upstream apexyard — preview, merge-or-rebase, sync branch |
 | `/split-portfolio` | Migrate a single-fork adopter to split-portfolio mode (public framework + private portfolio) |
 | `/release` | (Framework-only) Cut an apexyard release — diff, bump, CHANGELOG, release PR, tag |
+| `/release-sync` | (Framework-only) Sync `main` back to `dev` after a squash-merge release so the squash commit is an ancestor of `dev`, preventing recurring merge conflicts |
 | `/projects` | List all managed projects from the registry with status |
 | `/inbox` | Items needing your attention — PRs, issues, comments, blockers |
 | `/status` | Current snapshot — git, CI, in-progress work (use `--briefing` for 4-line shape) |
@@ -264,6 +280,7 @@ Reusable GitHub Actions workflows live at `golden-paths/pipelines/`:
 |----------|---------|
 | `ci.yml` | Combined pipeline (code quality + security + dependencies) |
 | `code-quality.yml` | TypeScript, ESLint, tests, build |
+| `swift-ci.yml` | Swift Package Manager build + guarded test (macOS) |
 | `security.yml` | Semgrep SAST + npm audit + secrets detection |
 | `dependency-audit.yml` | Weekly vulnerability + license scan |
 | `pr-title-check.yml` | Enforce ticket ID in PR titles |
@@ -287,7 +304,7 @@ Copy whichever you need into your project's `.github/workflows/`. Full details i
 | Rules (modular, framework-wide) | `.claude/rules/` |
 | **Adopter handbooks** (consumed by Rex during code review) | `handbooks/` — see [`handbooks/README.md`](handbooks/README.md) for the discovery + advisory/blocking conventions |
 | Agents | `.claude/agents/` |
-| Skills (54 slash commands) | `.claude/skills/` |
+| Skills (59 slash commands) | `.claude/skills/` |
 | Hook wiring | `.claude/settings.json` |
 | **Per-project docs** | `projects/<name>/` |
 | **Live working copies** (gitignored) | `workspace/<name>/` |

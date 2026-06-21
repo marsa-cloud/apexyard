@@ -69,6 +69,20 @@ projects:
       - demo
     ticket_prefix: GH
 
+  # SQL solution-runner + execution-time leaderboard for a mentorship cohort.
+  - name: sql-arena
+    repo: G0maa/sql-arena
+    docs: projects/sql-arena
+    status: active
+    tier: P2
+    roles:
+      - tech-lead
+      - backend-engineer
+    tags:
+      - tool
+      - mentorship
+    ticket_prefix: GH
+
 # -----------------------------------------------------------------------------
 # Defaults
 # -----------------------------------------------------------------------------

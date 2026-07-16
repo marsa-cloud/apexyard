@@ -113,6 +113,9 @@ Work on ONE ticket at a time. Complete fully before starting next. Each PR = one
 - **Tracker vocabulary is reserved** -- the words `Ticket`, `#N`, and dependency notation (`blocked by #N`, `depends on #N`) refer ONLY to real GitHub issues that exist in a tracker. Never apply them to in-conversation plan items. When decomposing work in chat, use `Step N` / `Item N` / plain bullets. Crossing the boundary from "plan item" to "tracker item" requires an explicit `gh issue create`. Full rule and anti-pattern example: @.claude/rules/ticket-vocabulary.md
 - **Plan mode for multi-step or risky work** -- enter plan mode when the task is ≥4 dependent steps, the path is unclear, or you're about to do something hard-to-reverse (force push, schema migration, batch PR/issue creation). Same self-discipline shape as parallel-work; harness-owned, no hook. Full heuristic: @.claude/rules/plan-mode.md
 - **Loop mode for repetitive, verifiable work** -- proactively offer (or, on opt-in, run) a closed loop when the task is the same build→verify cycle over ≥2 items, has a machine-checkable eval (build/tests/Rex/count), and a clear stop. Pick the primitive (`/loop` single-agent · `/fan-out` parallel · `Workflow` verifying fleet) and state the guardrails: the loop **halts at the per-PR CEO merge gate (never self-approves)**, its **verify stage runs build + tests + Rex (not just build)**, and it has a budget/iteration ceiling. Self-discipline shape like parallel-work; merge-gate hooks are the backstop. Full heuristic: @.claude/rules/loop-mode.md (rationale: AgDR-0068)
+- **Report like a colleague, not a robot** -- when you narrate status back to the operator in-thread, lead with the outcome in plain language, say why it matters, and match the format to the content (a table when it's genuinely tabular, bullets for a list, headings to section a multi-part reply, short prose for a single point) — the enemy is anything they have to *parse*, a wall of prose as much as a reflexive grid. Drop low-signal noise (marker SHAs, hook names, full CI lists when everything's green). Human ≠ vague — blockers, risks, and decisions-needed still surface clearly. The conversational-update sibling of the narrative-PR-summary rule. Self-discipline shape like plan-mode; no hook. Full rule and before/after: @.claude/rules/reporting-style.md
+- **Isolated builds for multi-repo git** -- when building or testing a repo other than the current one, use `git worktree add` off a persistent clone (never `/tmp`, which can be cleaned mid-session), always `cd <dir> || exit 1` in dir-changing bash blocks, and never `git reset --hard` without confirming `git rev-parse --show-toplevel` names the intended repo. The `Agent` tool's `isolation: "worktree"` is the standard for spawned build agents. Self-discipline shape like plan-mode; advisory backstop only. Full heuristic: @.claude/rules/isolated-builds.md
+- **Agent role selection at the spawn boundary** -- when spawning substantive build/coding/design work via the `Agent` tool (a single call, a `/fan-out` batch, or a `Workflow` fleet stage), pick the role-appropriate `subagent_type` (backend/domain/API/DB → `backend-engineer`; UI/components/design-system → `frontend-engineer`; hooks/CI/IaC/tooling → `platform-engineer`; docs/tech-design/task-breakdown → `tech-lead`; PRD/stories → `product-manager`; data → `data-engineer`; visual/UX → `ui-designer`/`ux-designer`) -- never default to generic `general-purpose`/`claude` for work that has a role home. Reserve `general-purpose`/`Explore` for genuine research/search with no role home. Self-discipline shape like parallel-work; no mechanical spawn-boundary guard shipped yet. Full mapping: @.claude/rules/agent-role-selection.md
 - **No hardcoded secrets** -- use environment variables
 
 ### Code Review
@@ -195,14 +198,14 @@ ApexYard ships with a `.claude/` directory containing the Claude Code primitives
 
 | Layer | Path | Purpose |
 |-------|------|---------|
-| Hooks | `.claude/hooks/` | 40 shell scripts that mechanically enforce SDLC rules — ticket-first (Edit/Write/Bash), migration-ticket-first, auto code review, merge gates (Rex + CEO + design review + architecture review), red-CI block, commit format, AgDR for arch changes, branch/PR-title validation, secrets scanning, onboarding-config guard, upstream-drift banner, leak protection, MCP-reindex-after-clone/-pull advisories, bootstrap-skill exemption |
-| Rules | `.claude/rules/` | 12 modular rule files (AgDR triggers, code standards, git conventions, leak protection, loop mode, parallel work, plan mode, PR quality, PR workflow, role triggers, ticket vocabulary, workflow gates) |
+| Hooks | `.claude/hooks/` | 43 shell scripts that mechanically enforce SDLC rules — ticket-first (Edit/Write/Bash), migration-ticket-first, auto code review, merge gates (Rex + CEO + design review + architecture review), red-CI block, commit format, AgDR for arch changes, branch/PR-title validation, secrets scanning, onboarding-config guard, upstream-drift banner, leak protection, MCP-reindex-after-clone/-pull advisories, bootstrap-skill exemption |
+| Rules | `.claude/rules/` | 15 modular rule files (AgDR triggers, agent role selection, code standards, git conventions, isolated builds, leak protection, loop mode, parallel work, plan mode, PR quality, PR workflow, reporting style, role triggers, ticket vocabulary, workflow gates) |
 | Handbooks | `handbooks/` | Adopter-authored coding standards consumed by Rex during code review. Discovery by path-convention (`architecture/` + `general/` always-load; `language/<lang>/` loads on diff-match). Advisory by default; opt in to blocking via `ENFORCEMENT: blocking` marker. See [`handbooks/README.md`](handbooks/README.md). |
-| Agents | `.claude/agents/` | 24 sub-agents (5 utility incl. Hakim post-consolidation + 7 engineering + 1 architecture (Tariq) + 6 product-design + 5 security-data). Per AgDR-0050 + the #347 PR 3 Hatim→Hakim consolidation decision + AgDR-0054 (Solution Architect). |
-| Skills | `.claude/skills/` | 59 slash commands — see the full list below |
+| Agents | `.claude/agents/` | 25 sub-agents (6 utility incl. Hakim post-consolidation + Naqid the Contrarian + 7 engineering + 1 architecture (Tariq) + 6 product-design + 5 security-data). Per AgDR-0050 + the #347 PR 3 Hatim→Hakim consolidation decision + AgDR-0054 (Solution Architect) + AgDR-0078 (The Contrarian). |
+| Skills | `.claude/skills/` | 65 slash commands — see the full list below |
 | Settings | `.claude/settings.json` | Wires hooks to `PreToolUse`, `PostToolUse`, and `SessionStart` events |
 
-### Available skills (59)
+### Available skills (65)
 
 One-line summary per skill; canonical details live in each `.claude/skills/<name>/SKILL.md`.
 
@@ -220,6 +223,7 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/monitoring-audit` | Observability audit — error tracking, health endpoints, alerting, runbooks |
 | `/docs-audit` | Diataxis docs audit — tutorials, how-to, reference, explanation |
 | `/mutation-test` | Mutation-testing sensor — Stryker/MutPy/go-mutesting/mutant; milestone cadence, exit-3 graceful-degrade |
+| `/eval-agents` | Score a review agent (Rex/Hakim/Tariq) against a labeled PR corpus — frozen ground-truth defect sets, approve-precision headline metric, never a prose rubric |
 | `/start-ticket` | Declare an active ticket for this session (required before code edits) |
 | `/approve-merge` | Record per-PR CEO approval and merge (required by merge gate) |
 | `/approve-design` | Record per-PR design-review approval for UI PRs (required by design gate) |
@@ -228,6 +232,8 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/code-review` | Invoke the Code Reviewer agent (Rex) on a PR |
 | `/security-review` | Invoke the Security Reviewer agent (Hakim) on a PR |
 | `/design-review` | Invoke the Solution Architect agent (Tariq) on a technical design / migration AgDR / feature spec (the non-code analog of `/code-review`) |
+| `/design-sync` | Sync a local component library to a claude.ai/design design-system project incrementally (drives the DesignSync tool; on-demand) |
+| `/challenge` | Invoke The Contrarian (Naqid) to steelman-then-challenge an idea, feature, or decision — advisory, never blocks a gate (premise-level analog of `/code-review`) |
 | `/approve-architecture` | Record per-PR architecture-review approval for design-artifact PRs (required by the architecture gate) |
 | `/audit-deps` | Audit dependencies for vulnerabilities, outdated packages, licences |
 | `/write-spec` | Generate a PRD or feature spec from a problem statement |
@@ -240,8 +246,11 @@ One-line summary per skill; canonical details live in each `.claude/skills/<name
 | `/task` | Create a structured technical task ticket (driver + scope + ACs) |
 | `/tickets-batch` | Bulk-file 5–20 structured tickets in one shared-context flow |
 | `/migration` | Create a labelled migration ticket + migration AgDR (required by migration gate) |
-| `/spike` | Create a time-boxed, hypothesis-driven spike ticket (exempt from AgDR + coverage gates) |
+| `/spike` | Create a time-boxed, hypothesis-driven spike ticket — answers "will it technically work?" (throwaway; exempt from AgDR + coverage gates) |
 | `/spike-close` | Disposition gate for spikes — `--promote` files a feature, `--discard` writes a memo |
+| `/prototype` | Create a throwaway UX/demo prototype ticket — answers "what should it look/feel like?" (throwaway; same AgDR + coverage exemptions as `/spike`) |
+| `/prototype-close` | Disposition gate for prototypes — `--promote` files a feature, `--discard` writes a memo (mirror of `/spike-close`) |
+| `/walking-skeleton` | Scaffold a `[Feature]`-class ticket for the thinnest end-to-end slice through every architectural layer — **kept** and grown into the product (full SDLC; NOT exempt) |
 | `/codify-rule` | Turn a review comment that caught a Rex-miss into a draft handbook entry |
 | `/investigation` | Create an investigation ticket + live-doc for sustained root-cause work |
 | `/idea` | Capture a new product idea to the shared backlog |
@@ -304,7 +313,7 @@ Copy whichever you need into your project's `.github/workflows/`. Full details i
 | Rules (modular, framework-wide) | `.claude/rules/` |
 | **Adopter handbooks** (consumed by Rex during code review) | `handbooks/` — see [`handbooks/README.md`](handbooks/README.md) for the discovery + advisory/blocking conventions |
 | Agents | `.claude/agents/` |
-| Skills (59 slash commands) | `.claude/skills/` |
+| Skills (65 slash commands) | `.claude/skills/` |
 | Hook wiring | `.claude/settings.json` |
 | **Per-project docs** | `projects/<name>/` |
 | **Live working copies** (gitignored) | `workspace/<name>/` |
